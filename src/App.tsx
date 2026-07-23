@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { ExperienceProvider } from '@/context/ExperienceContext'
 import { Loader } from '@/components/ui/Loader'
-import { Cursor } from '@/components/ui/Cursor'
 import { Navbar } from '@/components/layout/Navbar'
 import { VideoStage } from '@/components/layout/VideoStage'
 import { IntroOverlay } from '@/sections/IntroOverlay'
@@ -16,7 +15,6 @@ export default function App() {
   return (
     <ExperienceProvider>
       <Loader />
-      <Cursor />
       <Navbar />
       <VideoStage />
       <IntroOverlay />

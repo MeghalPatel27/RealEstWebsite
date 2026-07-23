@@ -33,8 +33,6 @@ interface ExperienceContextValue {
   activeSection: SectionId
   isLoaded: boolean
   setLoaded: (value: boolean) => void
-  isPlaying: boolean
-  setPlaying: (value: boolean) => void
   isMuted: boolean
   setMuted: (value: boolean) => void
   scrollToSection: (id: SectionId) => void
@@ -58,18 +56,16 @@ function sectionFromProgress(progress: number): SectionId {
   return SECTIONS[index].id
 }
 
-const MAX_WHEEL_DELTA = 90
+const MAX_WHEEL_DELTA = 120
 
 export function ExperienceProvider({ children }: { children: ReactNode }) {
   const [lenis, setLenis] = useState<Lenis | null>(null)
   const [activeSection, setActiveSection] = useState<SectionId>('arrival')
   const [isLoaded, setLoaded] = useState(false)
-  const [isPlaying, setPlaying] = useState(false)
   const [isMuted, setMuted] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
 
   const activeSectionRef = useRef<SectionId>('arrival')
-  const isPlayingRef = useRef(false)
   const isLoadedRef = useRef(false)
   const scrollHandlersRef = useRef(new Set<ScrollHandler>())
   const filmHandlersRef = useRef(new Set<FilmHandler>())
@@ -120,20 +116,20 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     if (isTouch) document.body.classList.add('is-touch')
 
     const instance = new Lenis({
-      lerp: reducedMotion ? 1 : 0.052,
+      // Firm enough to feel attached; still slightly soft for cinematic inertia
+      lerp: reducedMotion ? 1 : 0.22,
       smoothWheel: !reducedMotion,
-      wheelMultiplier: 0.78,
-      touchMultiplier: 1.08,
+      wheelMultiplier: 1.05,
+      touchMultiplier: 1.2,
       syncTouch: true,
-      syncTouchLerp: reducedMotion ? 1 : 0.055,
-      touchInertiaExponent: 1.45,
+      syncTouchLerp: reducedMotion ? 1 : 0.18,
+      touchInertiaExponent: 1.25,
       autoRaf: false,
       virtualScroll: (data) => {
         data.deltaY = Math.max(
           -MAX_WHEEL_DELTA,
           Math.min(MAX_WHEEL_DELTA, data.deltaY),
         )
-        data.deltaY *= 0.9
         data.deltaX = 0
         return true
       },
@@ -155,7 +151,9 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
 
       const reduced = reducedMotionRef.current
       const scrollP = scrollProgressRef.current
-      const catchUp = reduced ? 1 : 0.11
+      // Adaptive catch-up: stay glued to the wheel (was the main scroll/video lag)
+      const gap = Math.abs(scrollP - filmProgressRef.current)
+      const catchUp = reduced ? 1 : gap > 0.01 ? 0.7 : 0.45
       filmProgressRef.current += (scrollP - filmProgressRef.current) * catchUp
 
       const video = videoRef.current
@@ -192,12 +190,6 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
       if (next !== activeSectionRef.current) {
         activeSectionRef.current = next
         setActiveSection(next)
-      }
-
-      const playing = Boolean(video && !video.paused)
-      if (playing !== isPlayingRef.current) {
-        isPlayingRef.current = playing
-        setPlaying(playing)
       }
     }
 
@@ -243,8 +235,6 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
       activeSection,
       isLoaded,
       setLoaded,
-      isPlaying,
-      setPlaying,
       isMuted,
       setMuted,
       scrollToSection,
@@ -257,7 +247,6 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
       lenis,
       activeSection,
       isLoaded,
-      isPlaying,
       isMuted,
       scrollToSection,
       reducedMotion,

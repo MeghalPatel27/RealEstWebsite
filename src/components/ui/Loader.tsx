@@ -1,87 +1,115 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import gsap from 'gsap'
 import { useExperience } from '@/context/ExperienceContext'
-import { SITE } from '@/lib/constants'
 
+declare global {
+  interface Window {
+    __heroRevealed?: boolean
+  }
+}
+
+/**
+ * Drives the HTML `#boot-loader` (painted before React) through its finish
+ * sequence so LCP can fire on the static hero without a second ink overlay.
+ */
 export function Loader() {
   const { isLoaded, setLoaded, reducedMotion } = useExperience()
-  const rootRef = useRef<HTMLDivElement>(null)
-  const barRef = useRef<HTMLDivElement>(null)
-  const markRef = useRef<HTMLParagraphElement>(null)
 
   useEffect(() => {
     if (isLoaded) return
 
-    const root = rootRef.current
-    const bar = barRef.current
-    const mark = markRef.current
-    if (!root || !bar || !mark) return
-
-    const tl = gsap.timeline({
-      defaults: { ease: 'power4.out' },
-      onComplete: () => setLoaded(true),
-    })
-
-    if (reducedMotion) {
-      tl.to(bar, { scaleX: 1, duration: 0.2 }).to(root, {
-        autoAlpha: 0,
-        duration: 0.3,
-        pointerEvents: 'none',
-      })
-      return () => {
-        tl.kill()
-      }
+    const boot = document.getElementById('boot-loader')
+    if (!boot) {
+      setLoaded(true)
+      return
     }
 
-    tl.fromTo(
-      mark,
-      { autoAlpha: 0, y: 16 },
-      { autoAlpha: 1, y: 0, duration: 0.9 },
-    )
-      .fromTo(
-        bar,
-        { scaleX: 0 },
-        { scaleX: 1, duration: 1.6, ease: 'power2.inOut' },
-        '-=0.3',
+    let cancelled = false
+    let started = false
+    let tl: gsap.core.Timeline | null = null
+    const timers: number[] = []
+
+    const finish = () => {
+      if (cancelled) return
+      boot.setAttribute('data-done', 'true')
+      boot.setAttribute('aria-busy', 'false')
+      setLoaded(true)
+      timers.push(
+        window.setTimeout(() => {
+          boot.remove()
+        }, 520),
       )
-      .to(mark, { autoAlpha: 0, y: -10, duration: 0.45 }, '+=0.15')
-      .to(
-        root,
+    }
+
+    const runFinish = () => {
+      if (cancelled || started) return
+      started = true
+      boot.setAttribute('data-in', 'true')
+      boot.setAttribute('data-reveal', 'true')
+
+      if (reducedMotion) {
+        timers.push(window.setTimeout(finish, 100))
+        return
+      }
+
+      const bar = boot.querySelector<HTMLElement>('.boot-bar')
+      if (bar) {
+        bar.style.transition = 'none'
+        gsap.set(bar, { scaleX: 0.72, transformOrigin: 'left center' })
+      }
+
+      tl = gsap.timeline({
+        defaults: { ease: 'power2.inOut' },
+        onComplete: finish,
+      })
+
+      if (bar) {
+        tl.to(bar, { scaleX: 1, duration: 0.55 }, 0)
+      } else {
+        tl.to({}, { duration: 0.55 }, 0)
+      }
+
+      tl.add(() => boot.setAttribute('data-out', 'true'), '+=0.05').to(
+        boot,
         {
           autoAlpha: 0,
-          duration: 0.75,
+          duration: 0.55,
           ease: 'power2.inOut',
           pointerEvents: 'none',
         },
-        '-=0.2',
+        '+=0.08',
       )
+    }
+
+    boot.setAttribute('data-in', 'true')
+
+    let fallbackId = 0
+    const onReveal = () => {
+      window.removeEventListener('hero-revealed', onReveal)
+      if (fallbackId) window.clearTimeout(fallbackId)
+      runFinish()
+    }
+
+    if (window.__heroRevealed || boot.getAttribute('data-reveal') === 'true') {
+      runFinish()
+    } else {
+      window.addEventListener('hero-revealed', onReveal)
+      fallbackId = window.setTimeout(() => {
+        window.removeEventListener('hero-revealed', onReveal)
+        boot.setAttribute('data-reveal', 'true')
+        runFinish()
+      }, 950)
+      timers.push(fallbackId)
+    }
 
     return () => {
-      tl.kill()
+      cancelled = true
+      tl?.kill()
+      for (const id of timers) window.clearTimeout(id)
+      window.removeEventListener('hero-revealed', onReveal)
     }
   }, [isLoaded, reducedMotion, setLoaded])
 
-  return (
-    <div
-      ref={rootRef}
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-ink"
-      aria-hidden={isLoaded}
-      aria-busy={!isLoaded}
-      role="status"
-    >
-      <p
-        ref={markRef}
-        className="mb-10 font-sans text-[11px] font-light tracking-[0.45em] text-white/90 uppercase opacity-0"
-      >
-        {SITE.logoMark}
-      </p>
-      <div className="h-px w-40 overflow-hidden bg-white/15">
-        <div
-          ref={barRef}
-          className="h-full w-full origin-left scale-x-0 bg-white"
-        />
-      </div>
-      <span className="sr-only">Loading experience</span>
-    </div>
-  )
+  // HTML owns the visible loader chrome; React only orchestrates it.
+  return null
 }

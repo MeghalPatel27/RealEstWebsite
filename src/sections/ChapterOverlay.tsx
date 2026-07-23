@@ -18,6 +18,8 @@ export function ChapterOverlay() {
   const { isLoaded, reducedMotion } = useExperience()
   const rootRef = useRef<HTMLDivElement>(null)
   const panelsRef = useRef<HTMLElement[]>([])
+  const frameRef = useRef(0)
+  const hiddenRef = useRef(false)
 
   useEffect(() => {
     const root = rootRef.current
@@ -45,13 +47,24 @@ export function ChapterOverlay() {
     root.style.visibility = rootAlpha > 0.01 ? 'visible' : 'hidden'
 
     if (rootAlpha < 0.01) {
-      for (const panel of panels) {
-        panel.style.opacity = '0'
-        panel.style.visibility = 'hidden'
-        panel.style.transform = 'translate3d(0,0,0)'
+      if (!hiddenRef.current) {
+        hiddenRef.current = true
+        for (const panel of panels) {
+          panel.style.opacity = '0'
+          panel.style.visibility = 'hidden'
+          panel.style.transform = 'translate3d(0,0,0)'
+        }
       }
       return
     }
+    hiddenRef.current = false
+
+    // Breath/float only when settled — active scrubbing needs the main thread
+    const scrolling =
+      Math.abs(state.scrollProgress - state.progress) > 0.01
+    frameRef.current += 1
+    const updateMotion =
+      !reducedMotion && !scrolling && frameRef.current % 2 === 0
 
     const chapterProgress = Math.min(1, progress / 0.86)
     const exact = chapterProgress * SECTIONS.length
@@ -75,16 +88,24 @@ export function ChapterOverlay() {
         opacity = softerPeak(lobe * breath, 0.97)
       }
 
-      panel.style.opacity = String(opacity)
-      panel.style.visibility = opacity > 0.012 ? 'visible' : 'hidden'
+      // Skip DOM writes for fully dormant neighbors
+      if (opacity < 0.012) {
+        if (panel.style.visibility !== 'hidden') {
+          panel.style.opacity = '0'
+          panel.style.visibility = 'hidden'
+          panel.style.transform = 'translate3d(0,0,0)'
+        }
+        continue
+      }
 
-      if (!reducedMotion && opacity > 0.012) {
+      panel.style.opacity = String(opacity)
+      panel.style.visibility = 'visible'
+
+      if (!reducedMotion && updateMotion) {
         const settle = 1 - opacity
         const float = Math.sin(t * 0.9 + i * 2.1) * FLOAT_PX * opacity
         const drift = settle * DRIFT_PX
         panel.style.transform = `translate3d(0,${drift + float}px,0)`
-      } else {
-        panel.style.transform = 'translate3d(0,0,0)'
       }
     }
   }, isLoaded)

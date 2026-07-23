@@ -15,7 +15,6 @@ export function VideoStage() {
     isLoaded,
     isMuted,
     setMuted,
-    setPlaying,
     reducedMotion,
     registerFilmVideo,
   } = useExperience()
@@ -30,6 +29,10 @@ export function VideoStage() {
     const video = videoRef.current
     if (!video || !isLoaded) return
     video.muted = true
+    // Upgrade buffering only after the intro is ready — keeps first paint light.
+    if (video.preload !== 'auto') {
+      video.preload = 'auto'
+    }
 
     const onMeta = () => {
       registerFilmVideo(video)
@@ -38,16 +41,17 @@ export function VideoStage() {
     else video.addEventListener('loadedmetadata', onMeta, { once: true })
 
     if (reducedMotion) {
-      void video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      void video.play().catch(() => {
+        /* autoplay policies */
+      })
     } else {
       video.pause()
-      setPlaying(false)
     }
 
     return () => {
       video.removeEventListener('loadedmetadata', onMeta)
     }
-  }, [isLoaded, reducedMotion, setPlaying, registerFilmVideo])
+  }, [isLoaded, reducedMotion, registerFilmVideo])
 
   useEffect(() => {
     const video = videoRef.current
@@ -77,7 +81,7 @@ export function VideoStage() {
         poster={SITE.posterSrc}
         playsInline
         muted={isMuted}
-        preload="auto"
+        preload="metadata"
         loop={false}
         disablePictureInPicture
       />
@@ -92,9 +96,8 @@ export function VideoStage() {
         >
           <button
             type="button"
-            data-cursor="interactive"
             aria-label={isMuted ? 'Unmute film' : 'Mute film'}
-            className="flex size-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-transform duration-300 hover:scale-105"
+            className="flex size-11 items-center justify-center rounded-full bg-black/55 text-white transition-transform duration-300 hover:scale-105"
             onClick={() => setMuted(!isMuted)}
           >
             {isMuted ? (

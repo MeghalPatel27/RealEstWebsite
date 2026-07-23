@@ -70,7 +70,6 @@ export function ClosingSection() {
 
           <a
             href="mailto:hello@nplusj3d.com"
-            data-cursor="interactive"
             className="bg-white px-8 py-3.5 font-sans text-[11px] font-medium tracking-[0.32em] text-[#050505] uppercase transition-transform duration-300 hover:scale-[1.03]"
           >
             {SITE.cta}
