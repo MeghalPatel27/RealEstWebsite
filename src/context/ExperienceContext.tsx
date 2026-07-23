@@ -1,0 +1,318 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import Lenis from 'lenis'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import {
+  SECTIONS,
+  videoTimeFromProgress,
+  type SectionId,
+} from '@/lib/constants'
+import { easeOutQuint } from '@/lib/motion'
+import {
+  driveVideoToward,
+  resolveFilmProgress,
+  type FilmHandler,
+  type FilmState,
+} from '@/lib/filmClock'
+
+gsap.registerPlugin(ScrollTrigger)
+
+type ScrollHandler = (progress: number) => void
+
+interface ExperienceContextValue {
+  lenis: Lenis | null
+  activeSection: SectionId
+  isLoaded: boolean
+  setLoaded: (value: boolean) => void
+  isPlaying: boolean
+  setPlaying: (value: boolean) => void
+  isMuted: boolean
+  setMuted: (value: boolean) => void
+  scrollToSection: (id: SectionId) => void
+  reducedMotion: boolean
+  /** Lenis scroll bus (intent). Prefer subscribeFilm for cinematic UI. */
+  subscribeScroll: (handler: ScrollHandler) => () => void
+  /** Master timeline — progress derived from the film playhead. */
+  subscribeFilm: (handler: FilmHandler) => () => void
+  /** Register the hero <video> with the film clock. */
+  registerFilmVideo: (video: HTMLVideoElement | null) => void
+}
+
+const ExperienceContext = createContext<ExperienceContextValue | null>(null)
+
+function sectionFromProgress(progress: number): SectionId {
+  const chapterProgress = Math.min(1, progress / 0.86)
+  const index = Math.min(
+    SECTIONS.length - 1,
+    Math.max(0, Math.floor(chapterProgress * SECTIONS.length)),
+  )
+  return SECTIONS[index].id
+}
+
+const MAX_WHEEL_DELTA = 90
+
+export function ExperienceProvider({ children }: { children: ReactNode }) {
+  const [lenis, setLenis] = useState<Lenis | null>(null)
+  const [activeSection, setActiveSection] = useState<SectionId>('arrival')
+  const [isLoaded, setLoaded] = useState(false)
+  const [isPlaying, setPlaying] = useState(false)
+  const [isMuted, setMuted] = useState(true)
+  const [reducedMotion, setReducedMotion] = useState(false)
+
+  const activeSectionRef = useRef<SectionId>('arrival')
+  const isPlayingRef = useRef(false)
+  const isLoadedRef = useRef(false)
+  const scrollHandlersRef = useRef(new Set<ScrollHandler>())
+  const filmHandlersRef = useRef(new Set<FilmHandler>())
+  const scrollProgressRef = useRef(0)
+  const filmProgressRef = useRef(0)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const durationRef = useRef(15)
+  const reducedMotionRef = useRef(false)
+
+  const subscribeScroll = useCallback((handler: ScrollHandler) => {
+    scrollHandlersRef.current.add(handler)
+    return () => {
+      scrollHandlersRef.current.delete(handler)
+    }
+  }, [])
+
+  const subscribeFilm = useCallback((handler: FilmHandler) => {
+    filmHandlersRef.current.add(handler)
+    return () => {
+      filmHandlersRef.current.delete(handler)
+    }
+  }, [])
+
+  const registerFilmVideo = useCallback((video: HTMLVideoElement | null) => {
+    videoRef.current = video
+    if (video && video.duration && Number.isFinite(video.duration)) {
+      durationRef.current = video.duration
+    }
+  }, [])
+
+  useEffect(() => {
+    isLoadedRef.current = isLoaded
+  }, [isLoaded])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => {
+      setReducedMotion(media.matches)
+      reducedMotionRef.current = media.matches
+    }
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    const isTouch = window.matchMedia('(pointer: coarse)').matches
+    if (isTouch) document.body.classList.add('is-touch')
+
+    const instance = new Lenis({
+      lerp: reducedMotion ? 1 : 0.052,
+      smoothWheel: !reducedMotion,
+      wheelMultiplier: 0.78,
+      touchMultiplier: 1.08,
+      syncTouch: true,
+      syncTouchLerp: reducedMotion ? 1 : 0.055,
+      touchInertiaExponent: 1.45,
+      autoRaf: false,
+      virtualScroll: (data) => {
+        data.deltaY = Math.max(
+          -MAX_WHEEL_DELTA,
+          Math.min(MAX_WHEEL_DELTA, data.deltaY),
+        )
+        data.deltaY *= 0.9
+        data.deltaX = 0
+        return true
+      },
+    })
+
+    setLenis(instance)
+    ;(window as Window & { __lenis?: Lenis }).__lenis = instance
+
+    instance.on('scroll', (e) => {
+      ScrollTrigger.update()
+      scrollProgressRef.current = e.progress
+      for (const handler of scrollHandlersRef.current) {
+        handler(e.progress)
+      }
+    })
+
+    const onTick = (time: number) => {
+      instance.raf(time * 1000)
+
+      const reduced = reducedMotionRef.current
+      const scrollP = scrollProgressRef.current
+      const catchUp = reduced ? 1 : 0.11
+      filmProgressRef.current += (scrollP - filmProgressRef.current) * catchUp
+
+      const video = videoRef.current
+      if (video?.duration) durationRef.current = video.duration
+      const duration = durationRef.current
+
+      if (video && isLoadedRef.current) {
+        driveVideoToward({
+          video,
+          targetTime: videoTimeFromProgress(filmProgressRef.current, duration),
+          pageProgress: filmProgressRef.current,
+          reducedMotion: reduced,
+        })
+      }
+
+      const resolved = resolveFilmProgress(
+        video,
+        filmProgressRef.current,
+        duration,
+      )
+
+      const state: FilmState = {
+        progress: resolved.progress,
+        scrollProgress: scrollP,
+        videoTime: resolved.videoTime,
+        now: performance.now(),
+      }
+
+      for (const handler of filmHandlersRef.current) {
+        handler(state)
+      }
+
+      const next = sectionFromProgress(resolved.progress)
+      if (next !== activeSectionRef.current) {
+        activeSectionRef.current = next
+        setActiveSection(next)
+      }
+
+      const playing = Boolean(video && !video.paused)
+      if (playing !== isPlayingRef.current) {
+        isPlayingRef.current = playing
+        setPlaying(playing)
+      }
+    }
+
+    gsap.ticker.add(onTick)
+    gsap.ticker.lagSmoothing(0)
+
+    const refreshId = requestAnimationFrame(() => ScrollTrigger.refresh())
+
+    return () => {
+      cancelAnimationFrame(refreshId)
+      gsap.ticker.remove(onTick)
+      instance.destroy()
+      setLenis(null)
+    }
+  }, [reducedMotion])
+
+  useEffect(() => {
+    if (!isLoaded) return
+    const id = requestAnimationFrame(() => ScrollTrigger.refresh())
+    return () => cancelAnimationFrame(id)
+  }, [isLoaded])
+
+  const scrollToSection = useCallback(
+    (id: SectionId) => {
+      const el = document.getElementById(`section-${id}`)
+      if (!el) return
+      if (lenis) {
+        lenis.scrollTo(el, {
+          offset: 0,
+          duration: reducedMotion ? 0.5 : 2.05,
+          easing: easeOutQuint,
+        })
+      } else {
+        el.scrollIntoView({ behavior: 'smooth' })
+      }
+    },
+    [lenis, reducedMotion],
+  )
+
+  const value = useMemo(
+    () => ({
+      lenis,
+      activeSection,
+      isLoaded,
+      setLoaded,
+      isPlaying,
+      setPlaying,
+      isMuted,
+      setMuted,
+      scrollToSection,
+      reducedMotion,
+      subscribeScroll,
+      subscribeFilm,
+      registerFilmVideo,
+    }),
+    [
+      lenis,
+      activeSection,
+      isLoaded,
+      isPlaying,
+      isMuted,
+      scrollToSection,
+      reducedMotion,
+      subscribeScroll,
+      subscribeFilm,
+      registerFilmVideo,
+    ],
+  )
+
+  return (
+    <ExperienceContext.Provider value={value}>
+      {children}
+    </ExperienceContext.Provider>
+  )
+}
+
+export function useExperience() {
+  const ctx = useContext(ExperienceContext)
+  if (!ctx) {
+    throw new Error('useExperience must be used within ExperienceProvider')
+  }
+  return ctx
+}
+
+/** Subscribe to Lenis progress without React re-renders. */
+export function useScrollSync(handler: ScrollHandler, enabled = true) {
+  const { subscribeScroll, lenis } = useExperience()
+  const handlerRef = useRef(handler)
+  handlerRef.current = handler
+
+  useEffect(() => {
+    if (!enabled || !lenis) return
+    const wrapped: ScrollHandler = (progress) => handlerRef.current(progress)
+    wrapped(lenis.progress)
+    return subscribeScroll(wrapped)
+  }, [subscribeScroll, enabled, lenis])
+}
+
+/** Subscribe to the film-master timeline (preferred for overlays). */
+export function useFilmSync(handler: FilmHandler, enabled = true) {
+  const { subscribeFilm, lenis } = useExperience()
+  const handlerRef = useRef(handler)
+  handlerRef.current = handler
+
+  useEffect(() => {
+    if (!enabled) return
+    const wrapped: FilmHandler = (state) => handlerRef.current(state)
+    if (lenis) {
+      wrapped({
+        progress: lenis.progress,
+        scrollProgress: lenis.progress,
+        videoTime: 0,
+        now: performance.now(),
+      })
+    }
+    return subscribeFilm(wrapped)
+  }, [subscribeFilm, enabled, lenis])
+}

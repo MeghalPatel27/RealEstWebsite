@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Home Nº 134 — A cinematic architectural experience by NplusJ Studio."
+    />
+    <title>Home Nº 134</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Critical fonts only (weights actually used); font-display=swap -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- LCP: poster paints immediately; video metadata is fast-start enabled -->
+    <link rel="preload" as="image" href="/videos/poster.jpg" fetchpriority="high" />
+    <link rel="preload" as="video" href="/videos/cinematic.mp4" type="video/mp4" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
