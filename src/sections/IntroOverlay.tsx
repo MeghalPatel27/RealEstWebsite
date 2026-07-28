@@ -67,13 +67,13 @@ export function IntroOverlay() {
     const content = contentRef.current
     if (!root) return
 
-    const { progress, now } = state
+    const { scrollProgress, now } = state
 
     const opacity = reducedMotion
-      ? progress > 0.08
+      ? scrollProgress > 0.08
         ? 0
         : 1
-      : windowOpacity(progress, -0.02, 0, 0.03, 0.11)
+      : windowOpacity(scrollProgress, -0.02, 0, 0.03, 0.11)
 
     root.style.opacity = String(opacity)
     root.style.visibility = opacity > 0.02 ? 'visible' : 'hidden'
@@ -103,7 +103,7 @@ export function IntroOverlay() {
     >
       <div
         ref={contentRef}
-        className="absolute inset-x-0 top-[28%] flex flex-col items-center px-6 text-center will-change-transform"
+        className="absolute inset-x-0 top-[28%] flex flex-col items-center px-6 text-center"
       >
         <p
           data-intro

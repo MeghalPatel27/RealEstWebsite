@@ -139,7 +139,6 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     ;(window as Window & { __lenis?: Lenis }).__lenis = instance
 
     instance.on('scroll', (e) => {
-      ScrollTrigger.update()
       scrollProgressRef.current = e.progress
       for (const handler of scrollHandlersRef.current) {
         handler(e.progress)
@@ -151,10 +150,15 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
 
       const reduced = reducedMotionRef.current
       const scrollP = scrollProgressRef.current
-      // Adaptive catch-up: stay glued to the wheel (was the main scroll/video lag)
+      // Adaptive catch-up: stay glued to the wheel
       const gap = Math.abs(scrollP - filmProgressRef.current)
       const catchUp = reduced ? 1 : gap > 0.01 ? 0.7 : 0.45
       filmProgressRef.current += (scrollP - filmProgressRef.current) * catchUp
+
+      // ScrollTrigger only needed near the closing section
+      if (scrollP > 0.78) {
+        ScrollTrigger.update()
+      }
 
       const video = videoRef.current
       if (video?.duration) durationRef.current = video.duration
@@ -176,7 +180,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
       )
 
       const state: FilmState = {
-        progress: resolved.progress,
+        progress: filmProgressRef.current,
         scrollProgress: scrollP,
         videoTime: resolved.videoTime,
         now: performance.now(),
@@ -186,7 +190,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
         handler(state)
       }
 
-      const next = sectionFromProgress(resolved.progress)
+      const next = sectionFromProgress(scrollP)
       if (next !== activeSectionRef.current) {
         activeSectionRef.current = next
         setActiveSection(next)

@@ -49,11 +49,11 @@ export function ClosingSection() {
       className="relative z-30 flex min-h-[100svh] items-center justify-center bg-ink"
       aria-label="Studio credit and enquiry"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_55%)]" />
 
       <div className="relative flex flex-col items-center px-6 text-center">
         <div ref={logoRef} className="opacity-0">
-          <p className="font-sans text-[clamp(2rem,6vw,3.75rem)] font-extralight tracking-[0.18em] text-white drop-shadow-[0_0_28px_rgba(255,255,255,0.35)]">
+          <p className="font-sans text-[clamp(2rem,6vw,3.75rem)] font-extralight tracking-[0.18em] text-white/90 drop-shadow-[0_0_16px_rgba(255,255,255,0.12)]">
             {SITE.logoMark}
           </p>
         </div>
@@ -70,7 +70,7 @@ export function ClosingSection() {
 
           <a
             href="mailto:hello@nplusj3d.com"
-            className="bg-white px-8 py-3.5 font-sans text-[11px] font-medium tracking-[0.32em] text-[#050505] uppercase transition-transform duration-300 hover:scale-[1.03]"
+            className="border border-white/25 bg-white/8 px-8 py-3.5 font-sans text-[11px] font-medium tracking-[0.32em] text-white uppercase transition-all duration-300 hover:scale-[1.03] hover:bg-white/14"
           >
             {SITE.cta}
           </a>

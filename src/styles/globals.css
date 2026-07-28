@@ -74,7 +74,7 @@ html {
   color: white;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  text-rendering: auto;
 }
 
 html.lenis,
@@ -131,6 +131,7 @@ video {
 .chapter-panel {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
+  contain: layout style paint;
 }
 
 a {

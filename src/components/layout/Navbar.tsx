@@ -75,7 +75,7 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <a
               href="#enquire"
-              className="hidden bg-white px-4 py-2 font-sans text-[10px] font-medium tracking-[0.28em] text-[#050505] uppercase transition-transform duration-300 hover:scale-[1.03] lg:inline-block"
+              className="hidden border border-white/25 bg-white/8 px-4 py-2 font-sans text-[10px] font-medium tracking-[0.28em] text-white uppercase transition-all duration-300 hover:scale-[1.03] hover:bg-white/14 lg:inline-block"
             >
               {SITE.cta}
             </a>

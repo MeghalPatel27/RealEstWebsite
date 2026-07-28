@@ -29,10 +29,6 @@ export function VideoStage() {
     const video = videoRef.current
     if (!video || !isLoaded) return
     video.muted = true
-    // Upgrade buffering only after the intro is ready — keeps first paint light.
-    if (video.preload !== 'auto') {
-      video.preload = 'auto'
-    }
 
     const onMeta = () => {
       registerFilmVideo(video)
@@ -63,7 +59,7 @@ export function VideoStage() {
     const controls = controlsRef.current
     if (!controls || !isLoaded || reducedMotion) return
 
-    const show = windowOpacity(state.progress, -0.01, 0, 0.018, 0.042)
+    const show = windowOpacity(state.scrollProgress, -0.01, 0, 0.018, 0.042)
     controls.style.opacity = String(show)
     controls.style.pointerEvents = show > 0.5 ? 'auto' : 'none'
     controls.style.visibility = show > 0.02 ? 'visible' : 'hidden'

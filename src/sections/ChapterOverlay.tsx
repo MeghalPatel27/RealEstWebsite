@@ -4,8 +4,8 @@ import { SECTIONS, SITE } from '@/lib/constants'
 import { useExperience, useFilmSync } from '@/context/ExperienceContext'
 import { raisedCosine, softerPeak, windowOpacity } from '@/lib/motion'
 
-/** Wide lobes so scenes dissolve through each other (not discrete swaps). */
-const HALF_WIDTH = 0.78
+/** Tighter lobes — previous chapter fades before the next one reads clearly. */
+const HALF_WIDTH = 0.58
 const DRIFT_PX = 20
 const FLOAT_PX = 2.4
 const BREATH_OPACITY = 0.025
@@ -35,7 +35,9 @@ export function ChapterOverlay() {
     const panels = panelsRef.current
     if (!root || !isLoaded || panels.length === 0) return
 
-    const { progress, now } = state
+    // Lock text to raw scroll intent — no smoothing lag
+    const progress = state.scrollProgress
+    const { now } = state
 
     const rootAlpha = reducedMotion
       ? progress > 0.045 && progress < 0.84
@@ -70,25 +72,38 @@ export function ChapterOverlay() {
     const exact = chapterProgress * SECTIONS.length
     const t = now * 0.001
 
+    // Pre-compute opacities, then suppress non-dominant panels at crossfades
+    const opacities: number[] = []
     for (let i = 0; i < panels.length; i++) {
-      const panel = panels[i]
-      let opacity: number
-
       if (reducedMotion) {
         const index = Math.min(
           SECTIONS.length - 1,
           Math.max(0, Math.floor(exact)),
         )
-        opacity = i === index ? 1 : 0
+        opacities.push(i === index ? 1 : 0)
       } else {
         const center = i + 0.5
         const lobe = raisedCosine(exact - center, HALF_WIDTH)
-        // Soft peak + tiny breathing so the page never feels frozen
-        const breath = 1 + BREATH_OPACITY * Math.sin(t * 1.15 + i * 1.7)
-        opacity = softerPeak(lobe * breath, 0.97)
+        const breath =
+          updateMotion
+            ? 1 + BREATH_OPACITY * Math.sin(t * 1.15 + i * 1.7)
+            : 1
+        opacities.push(softerPeak(lobe * breath, 0.97))
+      }
+    }
+
+    let peak = 0
+    for (const o of opacities) peak = Math.max(peak, o)
+
+    for (let i = 0; i < panels.length; i++) {
+      const panel = panels[i]
+      let opacity = opacities[i]
+
+      // When a new chapter leads, hide the outgoing one promptly
+      if (!reducedMotion && peak > 0.12 && opacity < peak * 0.4) {
+        opacity = 0
       }
 
-      // Skip DOM writes for fully dormant neighbors
       if (opacity < 0.012) {
         if (panel.style.visibility !== 'hidden') {
           panel.style.opacity = '0'
