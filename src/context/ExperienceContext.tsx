@@ -17,8 +17,10 @@ import {
   type SectionId,
 } from '@/lib/constants'
 import { easeOutQuint } from '@/lib/motion'
+import { perf } from '@/lib/performance'
 import {
   driveVideoToward,
+  getVideoSyncMode,
   resolveFilmProgress,
   type FilmHandler,
   type FilmState,
@@ -74,6 +76,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const durationRef = useRef(15)
   const reducedMotionRef = useRef(false)
+  const tickFrameRef = useRef(0)
 
   const subscribeScroll = useCallback((handler: ScrollHandler) => {
     scrollHandlersRef.current.add(handler)
@@ -136,6 +139,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     })
 
     setLenis(instance)
+    perf.mark('lenis')
     ;(window as Window & { __lenis?: Lenis }).__lenis = instance
 
     instance.on('scroll', (e) => {
@@ -146,7 +150,13 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     })
 
     const onTick = (time: number) => {
+      perf.mark('gsap-tick-start')
+      perf.frameStart()
+      const tickStart = performance.now()
+
+      const lenisStart = performance.now()
       instance.raf(time * 1000)
+      perf.recordLenis(performance.now() - lenisStart)
 
       const reduced = reducedMotionRef.current
       const scrollP = scrollProgressRef.current
@@ -157,6 +167,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
 
       // ScrollTrigger only needed near the closing section
       if (scrollP > 0.78) {
+        perf.mark('closing-section')
         ScrollTrigger.update()
       }
 
@@ -164,13 +175,22 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
       if (video?.duration) durationRef.current = video.duration
       const duration = durationRef.current
 
+      tickFrameRef.current += 1
+
+      const targetTime = videoTimeFromProgress(filmProgressRef.current, duration)
+      perf.recordVideoTarget(targetTime)
+
       if (video && isLoadedRef.current) {
+        const driveStart = performance.now()
         driveVideoToward({
           video,
-          targetTime: videoTimeFromProgress(filmProgressRef.current, duration),
+          targetTime,
           pageProgress: filmProgressRef.current,
           reducedMotion: reduced,
+          frameId: tickFrameRef.current,
         })
+        perf.recordVideoDrive(performance.now() - driveStart)
+        perf.setVideoSyncMode(getVideoSyncMode())
       }
 
       const resolved = resolveFilmProgress(
@@ -186,15 +206,35 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
         now: performance.now(),
       }
 
+      const filmStart = performance.now()
+      perf.mark('film-sync-start')
       for (const handler of filmHandlersRef.current) {
         handler(state)
       }
+      perf.recordFilmSync(performance.now() - filmStart)
+      perf.mark('film-sync-end')
+      perf.measure('film-sync', 'film-sync-start', 'film-sync-end')
 
       const next = sectionFromProgress(scrollP)
       if (next !== activeSectionRef.current) {
         activeSectionRef.current = next
         setActiveSection(next)
       }
+
+      perf.updateScroll({
+        scrollProgress: scrollP,
+        filmProgress: filmProgressRef.current,
+        activeSection: activeSectionRef.current,
+        lenis: {
+          velocity: instance.velocity,
+          direction: instance.direction,
+        },
+      })
+
+      perf.recordGsapTick(performance.now() - tickStart)
+      perf.mark('gsap-tick-end')
+      perf.measure('gsap-tick', 'gsap-tick-start', 'gsap-tick-end')
+      perf.frameEnd()
     }
 
     gsap.ticker.add(onTick)

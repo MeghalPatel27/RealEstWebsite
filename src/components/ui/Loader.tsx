@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import gsap from 'gsap'
 import { useExperience } from '@/context/ExperienceContext'
+import { perf } from '@/lib/performance'
 
 declare global {
   interface Window {
@@ -18,6 +19,8 @@ export function Loader() {
   useEffect(() => {
     if (isLoaded) return
 
+    perf.mark('loader')
+
     const boot = document.getElementById('boot-loader')
     if (!boot) {
       setLoaded(true)
@@ -31,6 +34,7 @@ export function Loader() {
 
     const finish = () => {
       if (cancelled) return
+      perf.mark('loader:finish')
       boot.setAttribute('data-done', 'true')
       boot.setAttribute('aria-busy', 'false')
       setLoaded(true)

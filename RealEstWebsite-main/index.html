@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Home Nº 134 — A cinematic architectural experience by NplusJ Studio."
+    />
+    <title>Home Nº 134</title>
+
+    <!-- Self-hosted fonts — no render-blocking Google Fonts round-trip -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/outfit-300.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/cormorant-300.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/outfit-500.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/outfit-200.woff2"
+      crossorigin
+    />
+
+    <!-- LCP: poster paints immediately; do not preload the film on the critical path -->
+    <link rel="preload" as="image" href="/videos/poster.jpg" fetchpriority="high" />
+
+    <style>
+      @font-face {
+        font-family: 'Outfit';
+        font-style: normal;
+        font-display: swap;
+        font-weight: 200;
+        src: url('/fonts/outfit-200.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Outfit';
+        font-style: normal;
+        font-display: swap;
+        font-weight: 300;
+        src: url('/fonts/outfit-300.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Outfit';
+        font-style: normal;
+        font-display: swap;
+        font-weight: 500;
+        src: url('/fonts/outfit-500.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Cormorant Garamond';
+        font-style: normal;
+        font-display: swap;
+        font-weight: 300;
+        src: url('/fonts/cormorant-300.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Cormorant Garamond';
+        font-style: normal;
+        font-display: swap;
+        font-weight: 400;
+        src: url('/fonts/cormorant-300.woff2') format('woff2');
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: #050505;
+        color: #fff;
+        min-height: 100%;
+      }
+      #root {
+        min-height: 100vh;
+      }
+
+      /* Static hero under the boot loader — unlocks LCP before React */
+      #lcp-shell {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: #050505;
+      }
+      #lcp-shell[data-done='true'] {
+        visibility: hidden;
+        opacity: 0;
+        z-index: 0;
+      }
+      #lcp-shell img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      #lcp-shell .lcp-grade {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(5, 5, 5, 0.4),
+          transparent,
+          rgba(5, 5, 5, 0.55)
+        );
+      }
+      #lcp-shell .lcp-copy {
+        position: absolute;
+        inset-inline: 0;
+        top: 28%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 1.5rem;
+        text-align: center;
+      }
+      #lcp-shell .lcp-eyebrow {
+        margin: 0 0 1rem;
+        font-family: Outfit, 'Helvetica Neue', sans-serif;
+        font-size: 10px;
+        font-weight: 300;
+        letter-spacing: 0.5em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      #lcp-shell h1 {
+        margin: 0;
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-weight: 300;
+        font-size: clamp(2.5rem, 8vw, 5rem);
+        letter-spacing: -0.02em;
+        color: #fff;
+      }
+      #lcp-shell .lcp-sub {
+        margin: 1.25rem 0 0;
+        max-width: 24rem;
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 0.875rem;
+        font-weight: 300;
+        line-height: 1.625;
+        color: rgba(255, 255, 255, 0.65);
+      }
+      @media (min-width: 768px) {
+        #lcp-shell .lcp-sub {
+          font-size: 1rem;
+        }
+      }
+
+      .boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #050505;
+        transition:
+          background-color 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .boot-loader[data-reveal='true'] {
+        background: transparent;
+      }
+      .boot-loader[data-done='true'] {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .boot-loader .boot-mark {
+        margin: 0 0 2.5rem;
+        font-family: Outfit, 'Helvetica Neue', sans-serif;
+        font-size: 11px;
+        font-weight: 300;
+        letter-spacing: 0.45em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.9);
+        opacity: 0;
+        transform: translate3d(0, 16px, 0);
+        transition:
+          opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .boot-loader[data-in='true'] .boot-mark {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+      .boot-loader[data-out='true'] .boot-mark {
+        opacity: 0;
+        transform: translate3d(0, -10px, 0);
+      }
+      .boot-loader .boot-track {
+        width: 10rem;
+        height: 1px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .boot-loader .boot-bar {
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        transform: scaleX(0);
+        transform-origin: left center;
+        transition: transform 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .boot-loader[data-in='true'] .boot-bar {
+        transform: scaleX(0.72);
+      }
+      .boot-loader[data-reveal='true'] .boot-bar {
+        transform: scaleX(1);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Visible poster + brand for LCP; React takes over after boot -->
+    <div id="lcp-shell" aria-hidden="true">
+      <img
+        src="/videos/poster.jpg"
+        alt=""
+        width="1920"
+        height="1080"
+        fetchpriority="high"
+        decoding="sync"
+      />
+      <div class="lcp-grade"></div>
+      <div class="lcp-copy">
+        <p class="lcp-eyebrow">Presents</p>
+        <h1>HOME Nº 134</h1>
+        <p class="lcp-sub">
+          A cinematic walkthrough of a 10,000 sq ft contemporary residence in
+          Waccabuc, New York.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="boot-loader"
+      id="boot-loader"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <p class="boot-mark">nPLUSJ</p>
+      <div class="boot-track"><div class="boot-bar"></div></div>
+      <span
+        style="
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+        "
+        >Loading experience</span
+      >
+    </div>
+
+    <div id="root"></div>
+
+    <!-- Reveal poster + brand ASAP so LCP does not wait on React/GSAP -->
+    <script>
+      (function () {
+        var boot = document.getElementById('boot-loader')
+        if (!boot) return
+        var revealed = false
+        function reveal() {
+          if (revealed) return
+          revealed = true
+          boot.setAttribute('data-reveal', 'true')
+          window.__heroRevealed = true
+          window.dispatchEvent(new Event('hero-revealed'))
+        }
+        requestAnimationFrame(function () {
+          boot.setAttribute('data-in', 'true')
+          // Keep the solid ink cover briefly so the brand mark reads, then
+          // open onto the poster/hero (LCP) while the bar finishes.
+          setTimeout(reveal, 520)
+        })
+        setTimeout(reveal, 900)
+      })()
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

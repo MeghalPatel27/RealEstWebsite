@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { SECTIONS, SITE } from '@/lib/constants'
 import { useExperience, useFilmSync } from '@/context/ExperienceContext'
+import { perf } from '@/lib/performance'
 import { raisedCosine, softerPeak, windowOpacity } from '@/lib/motion'
 
 /** Tighter lobes — previous chapter fades before the next one reads clearly. */
@@ -30,7 +31,8 @@ export function ChapterOverlay() {
     gsap.set(panelsRef.current, { force3D: true })
   }, [isLoaded])
 
-  useFilmSync((state) => {
+  useFilmSync(
+    perf.wrapFilmHandler('chapter', (state) => {
     const root = rootRef.current
     const panels = panelsRef.current
     if (!root || !isLoaded || panels.length === 0) return
@@ -123,7 +125,9 @@ export function ChapterOverlay() {
         panel.style.transform = `translate3d(0,${drift + float}px,0)`
       }
     }
-  }, isLoaded)
+    }),
+    isLoaded,
+  )
 
   return (
     <div

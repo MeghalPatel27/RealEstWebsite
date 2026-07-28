@@ -1,5 +1,9 @@
 import { videoTimeFromProgress } from '@/lib/constants'
-import { clamp, quantizeToFrame, VIDEO_FRAME } from '@/lib/motion'
+import {
+  getVideoSyncEngine,
+  resetVideoSyncEngine,
+  type VideoDriveContext,
+} from '@/lib/video/VideoSyncEngine'
 
 export type FilmState = {
   /** Cinematic progress (0–1) — follows scroll intent closely */
@@ -14,90 +18,38 @@ export type FilmState = {
 
 export type FilmHandler = (state: FilmState) => void
 
-type DriveOptions = {
+export type DriveOptions = {
   video: HTMLVideoElement
   targetTime: number
   pageProgress: number
   reducedMotion: boolean
+  /** Master ticker frame id — prevents duplicate drives in one frame. */
+  frameId?: number
 }
 
-/** ~30fps reverse scrub — tight enough to track, sparse enough to avoid stalls */
-const REVERSE_SEEK_MIN_MS = 33
-/** Forward: seek when soft-play would visibly lag the wheel */
-const FORWARD_SEEK_DELTA = 0.22
-const SETTLE_EPS = VIDEO_FRAME * 0.85
-
-let lastReverseSeekAt = 0
-let lastReverseSeekTime = -1
-let lastForwardSeekAt = 0
-
 /**
- * Keep the decoder glued to scroll target.
- * Soft-play for small lead; seek when the wheel pulls ahead.
+ * Drive the hero film toward scroll intent via the VideoSyncEngine.
  */
 export function driveVideoToward({
   video,
   targetTime,
   pageProgress,
   reducedMotion,
+  frameId = 0,
 }: DriveOptions): void {
-  if (pageProgress >= 0.86) {
-    if (!video.paused) video.pause()
-    video.style.visibility = 'hidden'
-    return
+  const ctx: VideoDriveContext = {
+    video,
+    targetTime,
+    pageProgress,
+    reducedMotion,
+    frameId,
   }
-  video.style.visibility = 'visible'
+  getVideoSyncEngine().drive(ctx)
+}
 
-  if (reducedMotion) return
-
-  const current = video.currentTime
-  const delta = targetTime - current
-  const abs = Math.abs(delta)
-
-  // Settled — hold frame
-  if (abs < SETTLE_EPS) {
-    if (!video.paused) video.pause()
-    video.playbackRate = 1
-    return
-  }
-
-  // Forward
-  if (delta > 0) {
-    const now = performance.now()
-    // Large / mid gaps: snap so the picture stays on the scroll beat
-    if (delta >= FORWARD_SEEK_DELTA && now - lastForwardSeekAt >= 24) {
-      if (!video.paused) video.pause()
-      video.playbackRate = 1
-      video.currentTime = quantizeToFrame(targetTime)
-      lastForwardSeekAt = now
-      return
-    }
-
-    // Small lead: native play catches up without a seek hitch
-    video.playbackRate = clamp(0.85 + delta * 4.2, 0.85, 3.5)
-    if (video.paused) {
-      void video.play().catch(() => {
-        /* autoplay policies — stay paused */
-      })
-    }
-    return
-  }
-
-  // Backward — throttled quantized seeks
-  if (!video.paused) video.pause()
-  video.playbackRate = 1
-
-  const now = performance.now()
-  const quantized = quantizeToFrame(targetTime)
-  const seekDelta = Math.abs(quantized - lastReverseSeekTime)
-  const due =
-    now - lastReverseSeekAt >= REVERSE_SEEK_MIN_MS || seekDelta >= VIDEO_FRAME * 2
-
-  if (due) {
-    lastReverseSeekAt = now
-    lastReverseSeekTime = quantized
-    video.currentTime = quantized
-  }
+/** Reset per-session engine state (e.g. when swapping video elements). */
+export function resetVideoDrive(): void {
+  resetVideoSyncEngine()
 }
 
 /**
@@ -115,4 +67,9 @@ export function resolveFilmProgress(
       : videoTimeFromProgress(smoothedScroll, duration)
 
   return { progress: smoothedScroll, videoTime }
+}
+
+/** Expose current sync mode for Phase 1 overlay / DevTools. */
+export function getVideoSyncMode(): string {
+  return getVideoSyncEngine().mode
 }

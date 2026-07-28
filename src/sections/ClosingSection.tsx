@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SITE } from '@/lib/constants'
 import { useExperience } from '@/context/ExperienceContext'
+import { perf } from '@/lib/performance'
 
 export function ClosingSection() {
   const rootRef = useRef<HTMLElement>(null)
@@ -15,6 +16,7 @@ export function ClosingSection() {
     if (!root || !logo || reducedMotion) return
 
     const ctx = gsap.context(() => {
+      perf.mark('closing-section')
       // Opacity + scale only (no filter blur) — same resting look, cheaper paint.
       gsap.fromTo(
         logo,

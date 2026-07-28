@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NAV_ITEMS, SITE } from '@/lib/constants'
 import { useExperience, useFilmSync } from '@/context/ExperienceContext'
+import { perf } from '@/lib/performance'
 import { HiOutlineMenuAlt4, HiOutlineX } from 'react-icons/hi'
 
 export function Navbar() {
@@ -10,12 +11,14 @@ export function Navbar() {
   const scrolledRef = useRef(false)
 
   // DOM attribute toggle — avoids React re-renders on scroll threshold crosses
-  useFilmSync((state) => {
+  useFilmSync(
+    perf.wrapFilmHandler('navbar', (state) => {
     const next = state.progress > 0.02
     if (next === scrolledRef.current) return
     scrolledRef.current = next
     headerRef.current?.setAttribute('data-scrolled', next ? 'true' : 'false')
-  })
+    }),
+  )
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : ''

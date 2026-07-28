@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { SITE } from '@/lib/constants'
 import { useExperience, useFilmSync } from '@/context/ExperienceContext'
+import { resetVideoDrive } from '@/lib/filmClock'
+import { perf } from '@/lib/performance'
 import { windowOpacity } from '@/lib/motion'
 import { HiOutlineVolumeOff, HiOutlineVolumeUp } from 'react-icons/hi'
 
@@ -22,7 +24,12 @@ export function VideoStage() {
   useEffect(() => {
     const video = videoRef.current
     registerFilmVideo(video)
-    return () => registerFilmVideo(null)
+    perf.setVideoElement(video)
+    return () => {
+      registerFilmVideo(null)
+      perf.setVideoElement(null)
+      resetVideoDrive()
+    }
   }, [registerFilmVideo])
 
   useEffect(() => {
@@ -55,7 +62,8 @@ export function VideoStage() {
     video.muted = isMuted
   }, [isMuted])
 
-  useFilmSync((state) => {
+  useFilmSync(
+    perf.wrapFilmHandler('video-controls', (state) => {
     const controls = controlsRef.current
     if (!controls || !isLoaded || reducedMotion) return
 
@@ -63,7 +71,9 @@ export function VideoStage() {
     controls.style.opacity = String(show)
     controls.style.pointerEvents = show > 0.5 ? 'auto' : 'none'
     controls.style.visibility = show > 0.02 ? 'visible' : 'hidden'
-  }, isLoaded)
+    }),
+    isLoaded,
+  )
 
   return (
     <div
@@ -80,6 +90,10 @@ export function VideoStage() {
         preload="metadata"
         loop={false}
         disablePictureInPicture
+        onLoadedMetadata={() => {
+          perf.mark('video')
+          perf.setVideoElement(videoRef.current)
+        }}
       />
       {/* Separate compositor layer from the film */}
       <div className="video-stage-grade absolute inset-0 bg-gradient-to-b from-ink/40 via-transparent to-ink/55" />

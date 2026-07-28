@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { SITE } from '@/lib/constants'
 import { useExperience, useFilmSync } from '@/context/ExperienceContext'
+import { perf } from '@/lib/performance'
 import { windowOpacity } from '@/lib/motion'
 
 function dismissLcpShell() {
@@ -62,7 +63,8 @@ export function IntroOverlay() {
     }
   }, [isLoaded, reducedMotion])
 
-  useFilmSync((state) => {
+  useFilmSync(
+    perf.wrapFilmHandler('intro', (state) => {
     const root = rootRef.current
     const content = contentRef.current
     if (!root) return
@@ -93,7 +95,8 @@ export function IntroOverlay() {
       const float = Math.sin(now * 0.0009) * 3.5
       content.style.transform = `translate3d(0,${float}px,0)`
     }
-  })
+    }),
+  )
 
   return (
     <div

@@ -1,0 +1,108 @@
+import type { FilmHandlerName, PerfAPI, PerfLogger, PerfSnapshot } from './types'
+
+const emptySnapshot: PerfSnapshot = {
+  fps: { current: 0, average: 0, min: 0, max: 0 },
+  frame: {
+    frameTimeMs: 0,
+    droppedFrames: 0,
+    rafDurationMs: 0,
+    gsapTickMs: 0,
+    jsFrameCostMs: 0,
+  },
+  video: {
+    currentTime: 0,
+    targetTime: 0,
+    playbackRate: 1,
+    readyState: 0,
+    bufferedPercent: 0,
+    decodeHealth: 'unknown',
+    syncMode: '—',
+    seekCount: 0,
+    avgSeekLatencyMs: 0,
+    lastSeekLatencyMs: 0,
+    resolution: '',
+    source: '',
+  },
+  scroll: {
+    scrollProgress: 0,
+    filmProgress: 0,
+    activeSection: 'arrival',
+    lenisVelocity: 0,
+    lenisDirection: 0,
+    scrollSpeed: 0,
+  },
+  system: {
+    memoryMb: 0,
+    jsHeapMb: 0,
+    heapGrowthMb: 0,
+    listenerCountEstimate: 0,
+    activeAnimationCount: 0,
+    activeRafCount: 0,
+    layerCountEstimate: 0,
+    longTaskCount: 0,
+    gcSpikeCount: 0,
+  },
+  environment: {
+    devicePixelRatio: 1,
+    viewport: '',
+    browser: '',
+    gpuVendor: '',
+    reducedMotion: false,
+    touchDevice: false,
+    batterySaver: false,
+    saveData: false,
+    networkType: '',
+    performanceMode: 'idle',
+  },
+  pipeline: {
+    styleRecalcMs: 0,
+    layoutMs: 0,
+    paintMs: 0,
+    compositeMs: 0,
+  },
+  reactRenderCount: 0,
+  handlerTimings: {},
+  uptimeMs: 0,
+}
+
+const noopLogger: PerfLogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+}
+
+function identity<T extends (...args: never[]) => void>(_: FilmHandlerName, handler: T): T {
+  return handler
+}
+
+export const perf: PerfAPI = {
+  enabled: false,
+  init: () => {},
+  destroy: () => {},
+  getSnapshot: () => emptySnapshot,
+  subscribe: () => () => {},
+  mark: () => {},
+  measure: () => {},
+  startMeasure: () => {},
+  endMeasure: () => 0,
+  measureAsync: async <T>(_name: string, fn: () => Promise<T>) => fn(),
+  measureFrame: (fn) => fn(),
+  measureLongTask: () => {},
+  measureVideoSeek: (_video, _targetTime, apply) => apply(),
+  measureRender: () => {},
+  wrapFilmHandler: identity,
+  frameStart: () => {},
+  frameEnd: () => {},
+  recordLenis: () => {},
+  recordGsapTick: () => {},
+  recordFilmSync: () => {},
+  recordOverlaySync: () => {},
+  recordNavbarSync: () => {},
+  recordVideoTarget: () => {},
+  recordVideoDrive: () => {},
+  setVideoElement: () => {},
+  setVideoSyncMode: () => {},
+  updateScroll: () => {},
+  incrementReactRender: () => {},
+  logger: noopLogger,
+}
